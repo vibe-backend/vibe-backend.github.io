@@ -6,7 +6,7 @@ The HTML is built from [`vibe-backend/sdk`](https://github.com/vibe-backend/sdk)
 
 ## Deploy triggers
 
-- `repository_dispatch` (`deploy-docs`) from `vibe-backend/sdk` after a successful main build
+- `workflow_dispatch` on `pages.yml`, called by `vibe-backend/sdk` after a successful main build (`POST /repos/vibe-backend/vibe-backend.github.io/actions/workflows/pages.yml/dispatches` with `{"ref":"main"}`; the token needs only **Actions: write** on this repo)
 - `workflow_dispatch` (manual)
 - Daily cron (Hong Kong 00:10 / UTC 16:10) — refreshes the development-activity section and acts as a fallback if the sdk dispatch PAT expires
 
