@@ -19,6 +19,8 @@ Docs come from [`vibe-backend/sdk`'s `docs/`](https://github.com/vibe-backend/sd
 
 ## Deployment
 
+Dependabot keeps actions and dependencies updated weekly.
+
 The Pages workflow builds on pushes to `main`, all pull requests, manual `workflow_dispatch`, and a daily schedule at 00:10 Hong Kong time (16:10 UTC). Pull requests validate the build; deployment runs only from `main` using the official GitHub Pages actions.
 
 Each workflow build fetches docs from the public `vibe-backend/sdk@main` repository without a cross-repo token. SDK docs changes go live on the next deploy: a push here, the daily cron, or a manual `workflow_dispatch`. The daily build also refreshes the development activity heatmap.
