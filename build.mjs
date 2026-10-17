@@ -21,7 +21,11 @@ import { LOCALES, DEFAULT_LOCALE } from './src/i18n.mjs';
 import { fetchActivity } from './activity.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const root = path.resolve(here, '..');
+const sdkRoot = process.env.SDK_DIR ? path.resolve(process.env.SDK_DIR) : path.join(here, 'sdk');
+if (!fs.existsSync(path.join(sdkRoot, 'docs'))) {
+  console.error(`SDK docs not found at ${path.join(sdkRoot, 'docs')}. Run pnpm run fetch-sdk or set SDK_DIR to an SDK checkout.`);
+  process.exit(1);
+}
 const out = path.join(here, 'dist');
 const src = path.join(here, 'src');
 const REPO = 'https://github.com/vibe-backend/sdk';
@@ -121,22 +125,22 @@ function detectLang(md) {
 }
 
 // ---------- collect docs ----------
-const read = (rel) => fs.readFileSync(path.join(root, rel), 'utf8');
-const exists = (rel) => fs.existsSync(path.join(root, rel));
+const read = (rel) => fs.readFileSync(path.join(sdkRoot, rel), 'utf8');
+const exists = (rel) => fs.existsSync(path.join(sdkRoot, rel));
 const docs = [];
 // Spec versions: docs/spec-vX.Y(.Z).md, newest first (numeric semver sort).
 const semver = (v) => v.split('.').map(Number);
 const cmpVer = (a, b) => { const x = semver(a), y = semver(b); for (let i = 0; i < Math.max(x.length, y.length); i++) { const d = (y[i] || 0) - (x[i] || 0); if (d) return d; } return 0; };
-const specVersions = fs.readdirSync(path.join(root, 'docs')).map((f) => /^spec-v(\d+(?:\.\d+){0,2})\.md$/.exec(f)).filter(Boolean)
+const specVersions = fs.readdirSync(path.join(sdkRoot, 'docs')).map((f) => /^spec-v(\d+(?:\.\d+){0,2})\.md$/.exec(f)).filter(Boolean)
   .map((m) => m[1]).sort(cmpVer);
 // A spec marked `<!-- spec-status: draft -->` is built at its own URL but never becomes /latest/.
-const isDraftSpec = (v) => /^<!--\s*spec-status:\s*draft\s*-->\s*$/m.test(fs.readFileSync(path.join(root, 'docs', `spec-v${v}.md`), 'utf8'));
+const isDraftSpec = (v) => /^<!--\s*spec-status:\s*draft\s*-->\s*$/m.test(fs.readFileSync(path.join(sdkRoot, 'docs', `spec-v${v}.md`), 'utf8'));
 const LATEST = specVersions.find((v) => !isDraftSpec(v));
 for (const v of specVersions) {
   docs.push({ slug: `spec-v${v}`, rel: `docs/spec/v${v}/index.html`, group: 'spec', version: v, isLatest: v === LATEST, isDraft: isDraftSpec(v), source: `docs/spec-v${v}.md` });
 }
 if (exists('docs/best-practices')) {
-  const files = fs.readdirSync(path.join(root, 'docs/best-practices')).filter((f) => f.endsWith('.md'));
+  const files = fs.readdirSync(path.join(sdkRoot, 'docs/best-practices')).filter((f) => f.endsWith('.md'));
   // README.md is the best-practices index page and is listed first.
   files.sort((a, b) => (b.toLowerCase() === 'readme.md') - (a.toLowerCase() === 'readme.md') || a.localeCompare(b));
   for (const f of files) {
@@ -406,4 +410,4 @@ write('sdk/index.html', `<!doctype html>
 <body><p>This documentation has moved to <a href="${SITE_URL}">${SITE_URL}</a>.</p>
 <script>location.replace('/' + location.search + location.hash)</script></body></html>`);
 
-console.log(`Built ${count} pages in ${locales.length} locales (${docs.length} docs each) + ${allRels.length} language pickers + 1 legacy redirect into ${path.relative(root, out)}/`);
+console.log(`Built ${count} pages in ${locales.length} locales (${docs.length} docs each) + ${allRels.length} language pickers + 1 legacy redirect into ${path.relative(here, out)}/`);

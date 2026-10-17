@@ -4,10 +4,12 @@
   "version": "0.1.0",
   "description": "Product website for the vibe-backend SDK (static, built for GitHub Pages)",
   "type": "module",
+  "packageManager": "pnpm@10.34.7",
   "scripts": {
+    "fetch-sdk": "bash scripts/fetch-sdk.sh",
     "build": "node build.mjs",
     "check-links": "node check-links.mjs",
-    "serve": "npx --yes serve@14.2.6 dist"
+    "serve": "pnpm dlx serve@14.2.6 dist"
   },
   "dependencies": {
     "highlight.js": "^11.10.0",
@@ -15,6 +17,6 @@
     "sanitize-html": "^2.18.0"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   }
 }
