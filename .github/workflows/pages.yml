@@ -1,18 +1,16 @@
-# Hosts https://vibe-backend.github.io/ (org root).
-# Source of truth for content: vibe-backend/sdk (site/ + docs/).
-# Always builds sdk@main. Deploy is never run from pull_request.
-# Triggers: workflow_dispatch (called by sdk main via the Actions API, or manually), daily cron
-# (cron is the fallback when the sdk dispatch PAT expires).
+# Hosts https://vibe-backend.github.io/ (org root); site source lives here.
+# Docs content is fetched at build time from public vibe-backend/sdk@main.
+# No cross-repo token is needed. Deploy only from main.
 name: Pages
 
 on:
+  push:
+    branches: [main]
+  pull_request:
   workflow_dispatch:
   schedule:
-    # Daily rebuild at 00:10 Hong Kong time (16:10 UTC) — activity refresh + PAT-expiry fallback.
+    # Daily at 00:10 Hong Kong (16:10 UTC): refresh activity and SDK docs.
     - cron: '10 16 * * *'
-  pull_request:
-    paths:
-      - ".github/workflows/pages.yml"
 
 permissions:
   contents: read
@@ -25,45 +23,53 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout vibe-backend/sdk (main only)
+      - name: Checkout site
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Checkout SDK docs
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: vibe-backend/sdk
           ref: main
+          path: sdk
           persist-credentials: false
+          sparse-checkout: docs
+      - name: Record SDK commit
+        run: |
+          echo "SDK commit: $(git -C sdk rev-parse HEAD)" >> "$GITHUB_STEP_SUMMARY"
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: 20
-          cache: npm
-          cache-dependency-path: site/package-lock.json
+          node-version-file: .nvmrc
+          cache: pnpm
       - name: Install
-        working-directory: site
-        run: npm ci
+        run: pnpm install --frozen-lockfile
       - name: Build site at org root
-        working-directory: site
         env:
           SITE_URL: https://vibe-backend.github.io/
-          # Read-only token for development-activity (public repos only).
+          SDK_DIR: sdk
+          # Read-only, public repos only, for development activity.
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npm run build
+        run: pnpm run build
       - name: Check links
-        working-directory: site
-        run: npm run check-links
-      - name: Keep /sample-shop/ free for vibe-backend/sample-shop
+        run: pnpm run check-links
+      - name: Keep project Pages paths free
         run: |
-          if [ -e site/dist/sample-shop ] || [ -L site/dist/sample-shop ] || [ -e site/dist/sample-shop.html ]; then
-            echo "Refusing to publish: org site must not claim /sample-shop/ (owned by vibe-backend/sample-shop)."
-            exit 1
-          fi
-          echo "OK: no sample-shop path in dist."
+          for sample in sample-shop sample-envelope; do
+            if [ -e "dist/$sample" ] || [ -L "dist/$sample" ] || [ -e "dist/$sample.html" ] || [ -L "dist/$sample.html" ]; then
+              echo "Refusing to publish: /$sample/ belongs to vibe-backend/$sample."
+              exit 1
+            fi
+          done
       - name: Upload Pages artifact
         if: github.event_name != 'pull_request'
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
-          path: site/dist
+          path: dist
 
   deploy:
-    if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     needs: build
     runs-on: ubuntu-latest
     permissions:
